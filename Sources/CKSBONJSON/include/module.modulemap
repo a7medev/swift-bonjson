@@ -1,0 +1,5 @@
+module CKSBONJSON {
+    header "ksbonjson/KSBONJSONEncoder.h"
+    header "ksbonjson/KSBONJSONDecoder.h"
+    export *
+}
