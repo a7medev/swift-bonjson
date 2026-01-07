@@ -497,6 +497,22 @@ ksbonjson_encodeStatus ksbonjson_addString(KSBONJSONEncodeContext* const ctx,
     return addEncodedBytes(ctx, (const uint8_t*)value, valueLength);
 }
 
+ksbonjson_encodeStatus ksbonjson_addBinaryData(KSBONJSONEncodeContext* const ctx,
+                                               const uint8_t* const data,
+                                               const size_t dataLength)
+{
+    KSBONJSONContainerState* const container = getContainer(ctx);
+    SHOULD_NOT_BE_EXPECTING_OBJECT_NAME_OR_CHUNKING_STRING(container);
+    container->isExpectingName = true;
+
+    PROPAGATE_ERROR(encodeTypeAndLength(ctx, TYPE_BINARY, dataLength, 0));
+    if(dataLength > 0)
+    {
+        return addEncodedBytes(ctx, data, dataLength);
+    }
+    return KSBONJSON_ENCODE_OK;
+}
+
 ksbonjson_encodeStatus ksbonjson_chunkString(KSBONJSONEncodeContext* const ctx,
                                              const char* const chunk,
                                              const size_t chunkLength,

@@ -251,6 +251,18 @@ typedef struct KSBONJSONDecodeCallbacks
                                        void* KSBONJSON_RESTRICT userData);
 
     /**
+     * Called when a binary data element value is decoded.
+     *
+     * @param data The binary data.
+     * @param length The length of the binary data in bytes.
+     * @param userData Data that was specified when calling ksbonjson_decode().
+     * @return KSBONJSON_DECODE_OK if decoding should continue.
+     */
+    ksbonjson_decodeStatus (*onBinaryData)(const uint8_t* KSBONJSON_RESTRICT data,
+                                           size_t length,
+                                           void* KSBONJSON_RESTRICT userData);
+
+    /**
      * Called when a string chunk is decoded.
      *
      * The BONSJON spec requires at least one chunking security policy.

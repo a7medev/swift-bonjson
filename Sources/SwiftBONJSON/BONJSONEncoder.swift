@@ -18,14 +18,6 @@ public final class BONJSONEncoder {
         case custom(@Sendable (Date, any Encoder) throws -> Void)
     }
 
-    /// The strategy to use for encoding `Data` values.
-    public enum DataEncodingStrategy: Sendable {
-        /// Encode the `Data` as a Base64 encoded string.
-        case base64
-        /// Encode the `Data` using a custom closure.
-        case custom(@Sendable (Data, any Encoder) throws -> Void)
-    }
-
     /// The strategy to use for non-conforming floating-point values.
     public enum NonConformingFloatEncodingStrategy: Sendable {
         /// Throw an error upon encountering non-conforming values.
@@ -36,9 +28,6 @@ public final class BONJSONEncoder {
 
     /// The strategy used to encode dates. Defaults to `.secondsSince1970`.
     public var dateEncodingStrategy: DateEncodingStrategy = .secondsSince1970
-
-    /// The strategy used to encode Data values. Defaults to `.base64`.
-    public var dataEncodingStrategy: DataEncodingStrategy = .base64
 
     /// The strategy used for encoding non-conforming floats. Defaults to `.throw`.
     public var nonConformingFloatEncodingStrategy: NonConformingFloatEncodingStrategy = .throw
@@ -57,7 +46,6 @@ public final class BONJSONEncoder {
     public func encode<T: Encodable>(_ value: T) throws -> Data {
         let impl = _BONJSONEncoderImpl(options: _Options(
             dateEncodingStrategy: dateEncodingStrategy,
-            dataEncodingStrategy: dataEncodingStrategy,
             nonConformingFloatEncodingStrategy: nonConformingFloatEncodingStrategy,
             userInfo: userInfo
         ))
@@ -72,7 +60,6 @@ public final class BONJSONEncoder {
 extension BONJSONEncoder {
     struct _Options {
         let dateEncodingStrategy: DateEncodingStrategy
-        let dataEncodingStrategy: DataEncodingStrategy
         let nonConformingFloatEncodingStrategy: NonConformingFloatEncodingStrategy
         let userInfo: [CodingUserInfoKey: any Sendable]
     }
@@ -189,15 +176,13 @@ private final class _BONJSONEncoderImpl {
     }
 
     private func encodeData(_ data: Data) throws {
-        switch options.dataEncodingStrategy {
-        case .base64:
-            try encode(data.base64EncodedString())
-        case .custom(let closure):
-            let wrapper = _BONJSONTrackingEncoder(impl: self, codingPath: [])
-            try closure(data, wrapper)
-            if wrapper.containerState.started {
-                try endContainer()
-            }
+        try data.withUnsafeBytes { buffer in
+            let status = ksbonjson_addBinaryData(
+                &context,
+                buffer.baseAddress?.assumingMemoryBound(to: UInt8.self),
+                buffer.count
+            )
+            try checkStatus(status)
         }
     }
 

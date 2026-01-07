@@ -338,6 +338,24 @@ static ksbonjson_decodeStatus decodeAndReportLongString(DecodeContext* const ctx
     return KSBONJSON_DECODE_OK;
 }
 
+static ksbonjson_decodeStatus decodeAndReportBinaryData(DecodeContext* const ctx)
+{
+    uint64_t lengthPayload;
+    PROPAGATE_ERROR(ctx, decodeLengthPayload(ctx, &lengthPayload));
+    uint64_t length = lengthPayload >> 1;
+    // Binary data does not support chunking; continuation bit must be 0
+    unlikely_if(lengthPayload & 1)
+    {
+        return KSBONJSON_DECODE_INVALID_DATA;
+    }
+    SHOULD_HAVE_ROOM_FOR_BYTES(length);
+
+    const uint8_t* pos = ctx->bufferCurrent;
+    ctx->bufferCurrent += length;
+
+    return ctx->callbacks->onBinaryData(pos, length, ctx->userData);
+}
+
 static ksbonjson_decodeStatus beginArray(DecodeContext* const ctx)
 {
     unlikely_if(ctx->containerDepth > KSBONJSON_MAX_CONTAINER_DEPTH)
@@ -413,6 +431,8 @@ static ksbonjson_decodeStatus decodeValue(DecodeContext* const ctx, const uint8_
         case TYPE_STRING8:  case TYPE_STRING9:  case TYPE_STRING10: case TYPE_STRING11:
         case TYPE_STRING12: case TYPE_STRING13: case TYPE_STRING14: case TYPE_STRING15:
             return decodeAndReportShortString(ctx, typeCode);
+        case TYPE_BINARY:
+            return decodeAndReportBinaryData(ctx);
         case TYPE_UINT8:  case TYPE_UINT16: case TYPE_UINT24: case TYPE_UINT32:
         case TYPE_UINT40: case TYPE_UINT48: case TYPE_UINT56: case TYPE_UINT64:
             return decodeAndReportUnsignedInteger(ctx, typeCode);
@@ -439,7 +459,7 @@ static ksbonjson_decodeStatus decodeValue(DecodeContext* const ctx, const uint8_
             return ctx->callbacks->onBoolean(true, ctx->userData);
         case TYPE_NULL:
             return ctx->callbacks->onNull(ctx->userData);
-        case TYPE_RESERVED_65: case TYPE_RESERVED_66: case TYPE_RESERVED_67:
+        case TYPE_RESERVED_66: case TYPE_RESERVED_67:
         case TYPE_RESERVED_90: case TYPE_RESERVED_91: case TYPE_RESERVED_92:
         case TYPE_RESERVED_93: case TYPE_RESERVED_94: case TYPE_RESERVED_95:
         case TYPE_RESERVED_96: case TYPE_RESERVED_97: case TYPE_RESERVED_98:

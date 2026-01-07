@@ -18,14 +18,6 @@ public final class BONJSONDecoder: @unchecked Sendable {
         case custom(@Sendable (any Decoder) throws -> Date)
     }
 
-    /// The strategy to use for decoding `Data` values.
-    public enum DataDecodingStrategy: Sendable {
-        /// Decode the `Data` from a Base64 encoded string.
-        case base64
-        /// Decode the `Data` using a custom closure.
-        case custom(@Sendable (any Decoder) throws -> Data)
-    }
-
     /// The strategy to use for non-conforming floating-point values.
     public enum NonConformingFloatDecodingStrategy: Sendable {
         /// Throw an error upon encountering non-conforming values.
@@ -36,9 +28,6 @@ public final class BONJSONDecoder: @unchecked Sendable {
 
     /// The strategy used to decode dates. Defaults to `.secondsSince1970`.
     public var dateDecodingStrategy: DateDecodingStrategy = .secondsSince1970
-
-    /// The strategy used to decode Data values. Defaults to `.base64`.
-    public var dataDecodingStrategy: DataDecodingStrategy = .base64
 
     /// The strategy used for decoding non-conforming floats. Defaults to `.throw`.
     public var nonConformingFloatDecodingStrategy: NonConformingFloatDecodingStrategy = .throw
@@ -60,7 +49,6 @@ public final class BONJSONDecoder: @unchecked Sendable {
         let value = try parseBONJSON(data)
         let decoder = _BONJSONDecoder(value: value, options: _Options(
             dateDecodingStrategy: dateDecodingStrategy,
-            dataDecodingStrategy: dataDecodingStrategy,
             nonConformingFloatDecodingStrategy: nonConformingFloatDecodingStrategy,
             userInfo: userInfo
         ))
@@ -78,7 +66,6 @@ public final class BONJSONDecoder: @unchecked Sendable {
 extension BONJSONDecoder {
     struct _Options {
         let dateDecodingStrategy: DateDecodingStrategy
-        let dataDecodingStrategy: DataDecodingStrategy
         let nonConformingFloatDecodingStrategy: NonConformingFloatDecodingStrategy
         let userInfo: [CodingUserInfoKey: any Sendable]
     }
@@ -120,6 +107,7 @@ internal enum BONJSONValue {
     case float(Double)
     case bigNumber(significand: UInt64, exponent: Int32, isNegative: Bool)
     case string(String)
+    case binary(Data)
     case array([BONJSONValue])
     case object([(String, BONJSONValue)])
 
@@ -200,6 +188,12 @@ private final class BONJSONParser {
                 as: UTF8.self
             )
             parser.addValue(.string(string))
+            return KSBONJSON_DECODE_OK
+        }
+        callbacks.onBinaryData = { data, length, userData in
+            let parser = Unmanaged<BONJSONParser>.fromOpaque(userData!).takeUnretainedValue()
+            let binaryData = Data(bytes: data!, count: length)
+            parser.addValue(.binary(binaryData))
             return KSBONJSON_DECODE_OK
         }
         callbacks.onStringChunk = { value, length, isLastChunk, userData in
@@ -732,20 +726,13 @@ private final class _BONJSONDecoder: Decoder {
     }
 
     func unboxData(_ value: BONJSONValue) throws -> Data {
-        switch options.dataDecodingStrategy {
-        case .base64:
-            let string = try unboxString(value)
-            guard let data = Data(base64Encoded: string) else {
-                throw DecodingError.dataCorrupted(DecodingError.Context(
-                    codingPath: codingPath,
-                    debugDescription: "Invalid Base64 string"
-                ))
-            }
-            return data
-        case .custom(let closure):
-            let decoder = _BONJSONDecoder(value: value, options: options, codingPath: codingPath)
-            return try closure(decoder)
+        guard case .binary(let data) = value else {
+            throw DecodingError.typeMismatch(Data.self, DecodingError.Context(
+                codingPath: codingPath,
+                debugDescription: "Expected binary data but found \(value)"
+            ))
         }
+        return data
     }
 
     func unboxURL(_ value: BONJSONValue) throws -> URL {

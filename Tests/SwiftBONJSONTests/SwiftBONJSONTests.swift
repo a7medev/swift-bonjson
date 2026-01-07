@@ -302,10 +302,9 @@ struct BONJSONEncoderTests {
         #expect(decoded.timestamp.timeIntervalSince1970 == value.timestamp.timeIntervalSince1970)
     }
 
-    @Test("Encode data with base64")
-    func encodeDataBase64() throws {
+    @Test("Encode binary data")
+    func encodeBinaryData() throws {
         let encoder = BONJSONEncoder()
-        encoder.dataEncodingStrategy = .base64
 
         let originalData = "Hello, World!".data(using: .utf8)!
         let value = DataStruct(blob: originalData)
@@ -314,7 +313,40 @@ struct BONJSONEncoderTests {
         #expect(data.count > 0)
 
         let decoder = BONJSONDecoder()
-        decoder.dataDecodingStrategy = .base64
+        let decoded = try decoder.decode(DataStruct.self, from: data)
+        #expect(decoded.blob == value.blob)
+    }
+
+    @Test("Encode empty binary data")
+    func encodeEmptyBinaryData() throws {
+        let encoder = BONJSONEncoder()
+
+        let value = DataStruct(blob: Data())
+
+        let data = try encoder.encode(value)
+        #expect(data.count > 0)
+
+        let decoder = BONJSONDecoder()
+        let decoded = try decoder.decode(DataStruct.self, from: data)
+        #expect(decoded.blob == value.blob)
+        #expect(decoded.blob.isEmpty)
+    }
+
+    @Test("Encode large binary data")
+    func encodeLargeBinaryData() throws {
+        let encoder = BONJSONEncoder()
+
+        // Create a larger binary blob (1KB)
+        var originalData = Data(count: 1024)
+        for i in 0..<1024 {
+            originalData[i] = UInt8(i % 256)
+        }
+        let value = DataStruct(blob: originalData)
+
+        let data = try encoder.encode(value)
+        #expect(data.count > 0)
+
+        let decoder = BONJSONDecoder()
         let decoded = try decoder.decode(DataStruct.self, from: data)
         #expect(decoded.blob == value.blob)
     }

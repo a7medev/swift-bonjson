@@ -293,6 +293,18 @@ KSBONJSON_PUBLIC ksbonjson_encodeStatus ksbonjson_addString(KSBONJSONEncodeConte
                                                             size_t valueLength);
 
 /**
+ * Add a binary data element.
+ *
+ * @param context The encoding context.
+ * @param data The binary data to add.
+ * @param dataLength The length of the binary data in bytes.
+ * @return KSBONJSON_ENCODER_OK if the process was successful.
+ */
+KSBONJSON_PUBLIC ksbonjson_encodeStatus ksbonjson_addBinaryData(KSBONJSONEncodeContext* KSBONJSON_RESTRICT context,
+                                                                 const uint8_t* KSBONJSON_RESTRICT data,
+                                                                 size_t dataLength);
+
+/**
  * Build a string element progressively in chunks. When isLastChunk is true, the string is considered complete.
  *
  * Note: This library doesn't do UTF-8 checking!
